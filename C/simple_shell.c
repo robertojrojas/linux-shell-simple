@@ -1,8 +1,12 @@
-// Shell.
+// Modified version of the Shell(https://github.com/mit-pdos/xv6-riscv/blob/riscv/user/sh.c).
 
-#include "kernel/types.h"
-#include "user/user.h"
-#include "kernel/fcntl.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
 
 // Parsed command representation
 #define EXEC  1
@@ -66,7 +70,7 @@ runcmd(struct cmd *cmd)
   struct redircmd *rcmd;
 
   if(cmd == 0)
-    exit(1);
+    exit(EXIT_FAILURE);
 
   switch(cmd->type){
   default:
@@ -75,17 +79,17 @@ runcmd(struct cmd *cmd)
   case EXEC:
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
-      exit(1);
-    exec(ecmd->argv[0], ecmd->argv);
-    fprintf(2, "exec %s failed\n", ecmd->argv[0]);
+      exit(EXIT_FAILURE);
+    execvp(ecmd->argv[0], ecmd->argv);
+    fprintf(stderr, "exec %s failed\n", ecmd->argv[0]);
     break;
 
   case REDIR:
     rcmd = (struct redircmd*)cmd;
     close(rcmd->fd);
     if(open(rcmd->file, rcmd->mode) < 0){
-      fprintf(2, "open %s failed\n", rcmd->file);
-      exit(1);
+      fprintf(stderr, "open %s failed\n", rcmd->file);
+      exit(EXIT_FAILURE);
     }
     runcmd(rcmd->cmd);
     break;
@@ -128,7 +132,7 @@ runcmd(struct cmd *cmd)
       runcmd(bcmd->cmd);
     break;
   }
-  exit(0);
+  exit(EXIT_SUCCESS);
 }
 
 int
@@ -136,7 +140,7 @@ getcmd(char *buf, int nbuf)
 {
   write(2, "$ ", 2);
   memset(buf, 0, nbuf);
-  gets(buf, nbuf);
+  fgets(buf, nbuf, stdin);
   if(buf[0] == 0) // EOF
     return -1;
   return 0;
@@ -149,7 +153,8 @@ main(void)
   int fd;
 
   // Ensure that three file descriptors are open.
-  while((fd = open("console", O_RDWR)) >= 0){
+  //while((fd = open("console", O_RDWR)) >= 0){
+  while((fd = open(stdin, O_RDWR)) >= 0){
     if(fd >= 3){
       close(fd);
       break;
@@ -162,21 +167,21 @@ main(void)
       // Chdir must be called by the parent, not the child.
       buf[strlen(buf)-1] = 0;  // chop \n
       if(chdir(buf+3) < 0)
-        fprintf(2, "cannot cd %s\n", buf+3);
+        fprintf(stderr, "cannot cd %s\n", buf+3);
       continue;
     }
     if(fork1() == 0)
       runcmd(parsecmd(buf));
     wait(0);
   }
-  exit(0);
+  exit(EXIT_SUCCESS);
 }
 
 void
 panic(char *s)
 {
-  fprintf(2, "%s\n", s);
-  exit(1);
+  fprintf(stderr, "%s\n", s);
+  exit(EXIT_FAILURE);
 }
 
 int
@@ -335,7 +340,7 @@ parsecmd(char *s)
   cmd = parseline(&s, es);
   peek(&s, es, "");
   if(s != es){
-    fprintf(2, "leftovers: %s\n", s);
+    fprintf(stderr, "leftovers: %s\n", s);
     panic("syntax");
   }
   nulterminate(cmd);
@@ -387,10 +392,10 @@ parseredirs(struct cmd *cmd, char **ps, char *es)
       cmd = redircmd(cmd, q, eq, O_RDONLY, 0);
       break;
     case '>':
-      cmd = redircmd(cmd, q, eq, O_WRONLY|O_CREATE|O_TRUNC, 1);
+      cmd = redircmd(cmd, q, eq, O_WRONLY|O_CREAT|O_TRUNC, 1);
       break;
     case '+':  // >>
-      cmd = redircmd(cmd, q, eq, O_WRONLY|O_CREATE, 1);
+      cmd = redircmd(cmd, q, eq, O_WRONLY|O_CREAT, 1);
       break;
     }
   }
