@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 
 // Parsed command representation
@@ -33,6 +34,7 @@ struct redircmd {
   char *file;
   char *efile;
   int mode;
+  int flags;
   int fd;
 };
 
@@ -87,8 +89,9 @@ runcmd(struct cmd *cmd)
   case REDIR:
     rcmd = (struct redircmd*)cmd;
     close(rcmd->fd);
-    if(open(rcmd->file, rcmd->mode) < 0){
+    if(open(rcmd->file, rcmd->mode, rcmd->flags) < 0){
       fprintf(stderr, "open %s failed\n", rcmd->file);
+      perror("Error opening source file");
       exit(EXIT_FAILURE);
     }
     runcmd(rcmd->cmd);
@@ -225,6 +228,7 @@ redircmd(struct cmd *subcmd, char *file, char *efile, int mode, int fd)
   cmd->file = file;
   cmd->efile = efile;
   cmd->mode = mode;
+  cmd->flags = S_IRWXU | S_IRWXG;
   cmd->fd = fd;
   return (struct cmd*)cmd;
 }
