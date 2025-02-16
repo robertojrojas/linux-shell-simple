@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 
 // Parsed command representation
@@ -90,9 +91,8 @@ runcmd(struct cmd *cmd)
     rcmd = (struct redircmd*)cmd;
     close(rcmd->fd);
     if(open(rcmd->file, rcmd->mode, rcmd->flags) < 0){
-      fprintf(stderr, "open %s failed\n", rcmd->file);
-      perror("Error opening source file");
-      exit(EXIT_FAILURE);
+      fprintf(stderr, "open %s failed, ", rcmd->file);
+      panic("error");
     }
     runcmd(rcmd->cmd);
     break;
@@ -187,7 +187,11 @@ main(void)
 void
 panic(char *s)
 {
-  fprintf(stderr, "%s\n", s);
+  if (errno > 0) {
+    perror(s);
+  } else {
+    fprintf(stderr, "%s\n", s);
+  }
   exit(EXIT_FAILURE);
 }
 
