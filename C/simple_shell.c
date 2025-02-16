@@ -98,7 +98,7 @@ runcmd(struct cmd *cmd)
     lcmd = (struct listcmd*)cmd;
     if(fork1() == 0)
       runcmd(lcmd->left);
-    wait(0);
+    wait(NULL);
     runcmd(lcmd->right);
     break;
 
@@ -122,8 +122,8 @@ runcmd(struct cmd *cmd)
     }
     close(p[0]);
     close(p[1]);
-    wait(0);
-    wait(0);
+    wait(NULL);
+    wait(NULL);
     break;
 
   case BACK:
@@ -138,7 +138,7 @@ runcmd(struct cmd *cmd)
 int
 getcmd(char *buf, int nbuf)
 {
-  write(2, "$ ", 2);
+  write(STDERR_FILENO, "$ ", 2);
   memset(buf, 0, nbuf);
   fgets(buf, nbuf, stdin);
   if(buf[0] == 0) // EOF
@@ -151,18 +151,18 @@ main(void)
 {
   static char buf[100];
   
-
-  // Ensure that three file descriptors are open.
   /* 
     TODO: Do we need to do this on Linux x86_64 Kernel???
-
-  //int fd;
-  while((fd = open("console", O_RDWR)) >= 0){
-    if(fd >= 3){
-      close(fd);
-      break;
+    *****************************************************
+    // Ensure that three file descriptors are open.
+    //int fd;
+    while((fd = open("console", O_RDWR)) >= 0){
+      if(fd >= 3){
+        close(fd);
+        break;
+      }
     }
-  }
+    *****************************************************
   */
 
   // Read and run input commands.
@@ -176,7 +176,7 @@ main(void)
     }
     if(fork1() == 0)
       runcmd(parsecmd(buf));
-    wait(0);
+    wait(NULL);
   }
   exit(EXIT_SUCCESS);
 }

@@ -7,5 +7,8 @@ all: $(BINS)
 %: %.c
 	$(CC) $(CFLAGS) $^ -o $@
 
+run: $(BINS)
+	./$(BINS)
+
 clean:
 	$(RM) $(BINS)
